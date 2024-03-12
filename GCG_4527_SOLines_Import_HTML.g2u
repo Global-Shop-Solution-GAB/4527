@@ -1,0 +1,120 @@
+Program.Sub.Preflight.Start
+V.Global.sFilePath.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+V.Local..BulkDeclareString(sFilePath, sText)
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.UI.ShowOpenFileDialog("","HTML|*.HTML","",V.Global.sFilePath)
+
+'check the file extension
+
+F.Intrinsic.Debug.InvokeDebugger
+
+F.Intrinsic.Debug.Stop
+
+Function.Intrinsic.Control.CallSub(format_html)
+
+F.Intrinsic.Debug.Stop
+
+F.ODBC.Connection!con.Close
+Program.Sub.Main.End
+
+Program.Sub.FORMAT_HTML.Start
+V.Local..BulkDeclareString(sText, sPart)
+V.Local..BulkDeclareLong(iPos1, iLength)
+F.Intrinsic.File.File2String(V.Global.sFilePath, V.Local.sText)
+
+F.Intrinsic.String.Instr(V.Local.sText,"Amount  Rec Date/Week",1,V.Local.iPos1)
+F.Intrinsic.Math.Add(V.Local.iPos1,118,V.Local.iPos1)
+'get length of file
+Function.Intrinsic.String.Len(V.Local.sText, V.Local.iLength)
+'Select text from beginning of first line entry
+F.Intrinsic.String.Mid(V.Local.sText,V.Local.iPos1,V.Local.iLength,V.Local.sText)
+F.Intrinsic.String.Split(V.Local.sText, V.Ambient.NewLine, V.Local.sText)
+
+F.Intrinsic.Debug.Stop
+
+
+Program.Sub.FORMAT_HTML.End
+
+Program.Sub.CREATE_FILE.Start
+V.Local..BulkDeclareString(sData, sTemp, sTemp1, sTemp2, sFilePath)
+V.Local.iC.Declare(Long)
+
+F.Intrinsic.Control.For(V.Local.iC, 0, V.DataTable.L.RowCount--, 1)
+	'Order Number
+	V.Local.sTemp.Set(V.DataTable.L(V.Local.iC).Order_NO!FieldVal)
+	F.Intrinsic.String.LPad(V.Local.sTemp, "0", 7, V.Local.sTemp)
+	F.Intrinsic.String.Build("{0}{1}", V.Local.sData, V.Local.sTemp, V.Local.sData)
+	
+	'Line Number
+	V.Local.sTemp.Set(V.DataTable.L(V.Local.iC).Line_NO!FieldVal)
+	F.Intrinsic.String.LPad(V.Local.sTemp, "0", 3, V.Local.sTemp)
+	F.Intrinsic.String.Build("{0}{1}", V.Local.sData, V.Local.sTemp, V.Local.sData)
+	
+	'Record Type (L)
+	F.Intrinsic.String.Build("{0}{1}", V.Local.sData, "L", V.Local.sData)
+	
+	'Order QTY starts at 31
+	F.Intrinsic.String.RPad(V.Local.sTemp, " ", 30, V.Local.sTemp)
+	V.Local.sTemp.Set(V.DataTable.L(V.Local.iC).QTY!FieldVal)
+	F.Intrinsic.String.Split(V.Local.sTemp, ".", V.Local.sTemp)
+	F.Intrinsic.String.LPad(V.Local.sTemp(0), "0", 9, V.Local.sTemp1)
+	F.Intrinsic.String.RPad(V.Local.sTemp(1), "0", 4, V.Local.sTemp2)
+	F.Intrinsic.String.Build("{0}{1}{2}", V.Local.sData, V.Local.sTemp1, V.Local.sTemp2,V.Local.sData)
+	
+	'back order QTY, same as above, starts at 63
+	F.Intrinsic.String.RPad(V.Local.sTemp, " ", 62, V.Local.sTemp)
+	F.Intrinsic.String.Build("{0}{1}{2}", V.Local.sData, V.Local.sTemp1, V.Local.sTemp2,V.Local.sData)
+	
+	'Price, starts at 117
+	F.Intrinsic.String.RPad(V.Local.sTemp, " ", 116, V.Local.sTemp)
+	V.Local.sTemp.Set(V.DataTable.L(V.Local.iC).Price!FieldVal)
+	F.Intrinsic.String.Split(V.Local.sTemp, ".", V.Local.sTemp)
+	F.Intrinsic.String.LPad(V.Local.sTemp(0), "0", 8, V.Local.sTemp1)
+	F.Intrinsic.String.RPad(V.Local.sTemp(1), "0", 5, V.Local.sTemp2)
+	F.Intrinsic.String.Build("{0}{1}{2}", V.Local.sData, V.Local.sTemp1, V.Local.sTemp2,V.Local.sData)
+	
+	'Order currency code, must match order currency in 'A' record, starts at 565
+	F.Intrinsic.String.RPad(V.Local.sTemp, " ", 564, V.Local.sTemp)
+	F.Intrinsic.String.Build("{0}{1}", V.Local.sData, "USD", V.Local.sData)
+	
+	'Extended Amount- price * QTY, 14.2, starts at 568
+	F.Intrinsic.String.RPad(V.Local.sTemp, " ", 567, V.Local.sTemp)
+	F.Intrinsic.Math.Mult(V.DataTable.L(V.Local.iC).Price!FieldVal, V.DataTable.L(V.Local.iC).QTY!FieldVal, V.Local.sTemp)
+	F.Intrinsic.String.Split(V.Local.sTemp, ",", V.Local.sTemp)
+	F.Intrinsic.String.LPad(V.Local.sTemp(0), "0", 14, V.Local.sTemp1)
+	Function.Intrinsic.Control.If(V.Local.sTemp(1), =, "OOB")
+		V.Local.sTemp2.Set("0")
+	Function.Intrinsic.Control.Else
+		F.Intrinsic.String.RPad(V.Local.sTemp(1), "0", 2, V.Local.sTemp2)
+	Function.Intrinsic.Control.EndIf
+	F.Intrinsic.String.Build("{0}{1}{2}", V.Local.sData, V.Local.sTemp1, V.Local.sTemp2,V.Local.sData)
+	
+	'create new line
+	F.Intrinsic.String.Build("{0}{1}", V.Local.sData, V.Ambient.NewLine, V.Local.sData)
+F.Intrinsic.Control.Next(V.Local.iC)
+
+'upload file
+F.Intrinsic.String.Build("{0}\SALESHDR.TXT", V.Caller.FilesDir,V.Local.sFilePath)
+F.Intrinsic.File.String2File(V.Global.sFilePath, V.Local.sData)
+
+F.Global.General.CallWrapperSync(50,"UPLSALES/A")
+Program.Sub.CREATE_FILE.End
+
+Program.Sub.CREATE_TABLE.Start
+F.Data.DataTable.Create("L", TRUE)
+F.Data.DataTable.AddColumn("L", "Order_NO", "String")
+F.Data.DataTable.AddColumn("L", "Line_NO", "String")
+F.Data.DataTable.AddColumn("L", "QTY", "String")
+F.Data.DataTable.AddColumn("L", "Part", "String")
+F.Data.DataTable.AddColumn("L", "Price", "String")
+F.Data.DataTable.AddColumn("L", "Disc_Price", "String")
+
+Program.Sub.CREATE_TABLE.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$DH1$}$5/25/2017 2:25:20 PM$}$True
+Program.Sub.Comments.End
